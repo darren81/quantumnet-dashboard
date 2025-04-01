@@ -1,4 +1,20 @@
 import streamlit as st
+import os
+import json
+import base64
+
+# Load and decode the base64 GCP key from Streamlit secrets
+gcp_key_b64 = st.secrets["GCP_KEY_BASE64"]
+gcp_key_json = base64.b64decode(gcp_key_b64).decode("utf-8")
+
+# Write the key to a temporary file
+gcp_key_path = "/tmp/gcp_key.json"
+with open(gcp_key_path, "w") as f:
+    f.write(gcp_key_json)
+
+# Set environment variable so GCP libraries can find it
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = gcp_key_path
+import streamlit as st
 import pandas as pd
 import json
 from google.cloud import storage
