@@ -34,19 +34,21 @@ def load_json_from_gcs(filename):
     data = blob.download_as_text()
     return json.loads(data)
 
-# === Example display ===
-try:
-    strategy_log = load_json_from_gcs("strategy_log.json")
-    st.success("Strategy log loaded successfully.")
-    st.json(strategy_log)
-except Exception as e:
-    st.warning("No strategy log found.")
-    st.error(f"Details: {e}")
+# === Display Data ===
+col1, col2 = st.columns(2)
 
-try:
-    price_data = load_json_from_gcs("market_data.json")
-    st.success("Market data loaded successfully.")
-    st.json(price_data)
-except Exception as e:
-    st.warning("No data available yet.")
-    st.error(f"Details: {e}")
+with col1:
+    st.subheader("📈 Strategy Log")
+    try:
+        strategy_data = load_json_from_gcs("strategy_log.json")
+        st.json(strategy_data)
+    except Exception as e:
+        st.error(f"Failed to load strategy log: {e}")
+
+with col2:
+    st.subheader("🧠 Market Data")
+    try:
+        market_data = load_json_from_gcs("market_data.json")
+        st.json(market_data)
+    except Exception as e:
+        st.error(f"Failed to load market data: {e}")
