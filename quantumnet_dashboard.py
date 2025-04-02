@@ -4,61 +4,73 @@ import requests
 from google.cloud import storage
 from datetime import datetime
 
-st.set_page_config(page_title="QuantumNet Dashboard", layout="wide")
+st.set_page_config(page_title="QuantumNet Market Snapshot", layout="centered")
 
-# === Load JSON files from GCS ===
-def load_json_from_gcs(bucket_name, file_path):
+# --- HEADER ---
+st.markdown("### 📊 **QuantumNet Market Snapshot**")
+
+# --- UPLOAD SECTION (SIDEBAR) ---
+st.sidebar.header("📤 Upload New Log")
+upload_type = st.sidebar.radio("Choose file type", ["Strategy Log", "Market Data"])
+uploaded_file = st.sidebar.file_uploader("Upload a .json file")
+
+def upload_to_gcs(bucket_name, destination_blob_name, file):
     client = storage.Client()
     bucket = client.bucket(bucket_name)
-    blob = bucket.blob(file_path)
-    data = blob.download_as_text()
-    return json.loads(data)
+    blob = bucket.blob(destination_blob_name)
+    blob.upload_from_file(file)
+    return True
 
-# === Fetch live crypto prices ===
-def fetch_live_prices():
-    url = "https://api.coingecko.com/api/v3/simple/price"
-    params = {
-        'ids': 'bitcoin,ethereum',
-        'vs_currencies': 'usd'
-    }
+if uploaded_file is not None:
     try:
-        response = requests.get(url, params=params)
-        response.raise_for_status()
-        data = response.json()
-        return {
-            "BTC": data['bitcoin']['usd'],
-            "ETH": data['ethereum']['usd'],
-            "Error": None
-        }
+        content = json.load(uploaded_file)
+        uploaded_file.seek(0)  # Reset file pointer
+        blob_name = "logs/strategy_log.json" if upload_type == "Strategy Log" else "logs/market_data.json"
+        upload_to_gcs("quantumnet-core-bucket", blob_name, uploaded_file)
+        st.sidebar.success("✅ Upload successful! Refreshing...")
+        st.experimental_rerun()
+    except json.JSONDecodeError:
+        st.sidebar.error("❌ Invalid JSON file")
+
+# --- LOAD STRATEGY LOG ---
+def fetch_gcs_json(bucket_name, file_path):
+    try:
+        client = storage.Client()
+        bucket = client.get_bucket(bucket_name)
+        blob = bucket.blob(file_path)
+        data = blob.download_as_text()
+        return json.loads(data)
     except Exception as e:
-        return {
-            "BTC": "N/A",
-            "ETH": "N/A",
-            "Error": str(e)
-        }
+        return {"Error": str(e)}
 
-# === Load from GCS ===
-bucket_name = "quantumnet-core-bucket"
-strategy_log = load_json_from_gcs(bucket_name, "logs/strategy_log.json")
-market_data = load_json_from_gcs(bucket_name, "logs/market_data.json")
-live_prices = fetch_live_prices()
+strategy_log = fetch_gcs_json("quantumnet-core-bucket", "logs/strategy_log.json")
+market_data = fetch_gcs_json("quantumnet-core-bucket", "logs/market_data.json")
 
-# === Title ===
-st.title("📊 QuantumNet Market Snapshot")
-
-# === Strategy Log History ===
-st.subheader("📘 Strategy Log History")
+# --- STRATEGY LOG DISPLAY ---
+st.markdown("### 🧠 Strategy Log History")
 st.json(strategy_log)
 
-# === Market Data Snapshot ===
-st.subheader("📊 Market Data Snapshot")
+# --- MARKET SNAPSHOT DISPLAY ---
+st.markdown("### 📊 Market Data Snapshot")
 st.json(market_data)
 
-# === Live Market Prices ===
-st.subheader("⚡ Live Market Prices")
-if live_prices["Error"]:
-    st.error(f"⚠️ Error fetching prices: {live_prices['Error']}")
-else:
-    col1, col2 = st.columns(2)
-    col1.metric("Bitcoin (BTC)", f"${live_prices['BTC']:,}")
-    col2.metric("Ethereum (ETH)", f"${live_prices['ETH']:,}")
+# --- LIVE MARKET PRICES ---
+st.markdown("### ⚡ Live Market Prices")
+
+def get_price(symbol):
+    try:
+        r = requests.get(f"https://api.coingecko.com/api/v3/simple/price?ids={symbol}&vs_currencies=usd")
+        return r.json()[symbol]["usd"]
+    except:
+        return "N/A"
+
+btc_price = get_price("bitcoin")
+eth_price = get_price("ethereum")
+
+col1, col2 = st.columns(2)
+with col1:
+    st.caption("Bitcoin (BTC)")
+    st.markdown(f"**${btc_price:,}**")
+with col2:
+    st.caption("Ethereum (ETH)")
+    st.markdown(f"**${eth_price:,}**")
