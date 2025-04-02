@@ -115,15 +115,17 @@ def get_price(symbol):
 btc_price = get_price("bitcoin")
 eth_price = get_price("ethereum")
 
-st.markdown("""
-### ⚡ Live Market Prices
-""")
-col1, col2 = st.columns(2)
+# 🪙 Live Market Prices
+st.markdown("## ⚡ Live Market Prices")
 
-with col1:
-    st.caption("Bitcoin (BTC)")
+st.text("Bitcoin (BTC)")
+if isinstance(btc_price, (int, float)):
     st.subheader(f"${btc_price:,}")
+else:
+    st.error("⚠️ Unable to retrieve Bitcoin price.")
 
-with col2:
-    st.caption("Ethereum (ETH)")
+st.text("Ethereum (ETH)")
+if isinstance(eth_price, (int, float)):
     st.subheader(f"${eth_price:,}")
+else:
+    st.error("⚠️ Unable to retrieve Ethereum price.")
